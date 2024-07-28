@@ -16,6 +16,7 @@ pdf_path ='https://raw.githubusercontent.com/cami11220/tools/main/PDF reader/doc
 
 # Extraer tablas del PDF: una por cada página
 #tables = tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)
+# Se puede seleccionar ciertas páginas: pages='1-3' o pages=[1,3,5]
 
 # Concatenar las tablas en un solo DataFrame
 #table = pd.concat(tables, ignore_index=True)
