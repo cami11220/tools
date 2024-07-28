@@ -1,0 +1,47 @@
+# Instalar bibliotecas
+!pip install tabula-py
+
+# Importar bibliotecas
+import tabula
+import pandas as pd
+
+# Leer desde Github
+pdf_path ='https://raw.githubusercontent.com/cami11220/tools/main/PDF reader/documents/votantes2012.pdf' 
+
+# Leer desde Google Drive
+#from google.colab import drive 
+#drive.mount('/content/drive')
+#pdf_path ='/content/drive/MyDrive/tools/PDF/votantes2012.pdf'
+
+
+# Extraer tablas del PDF: una por cada página
+#tables = tabula.read_pdf(pdf_path, pages='all', multiple_tables=True)
+
+# Concatenar las tablas en un solo DataFrame
+#table = pd.concat(tables, ignore_index=True)
+
+# Extraer tablas del PDF: todas las páginas en una
+table = tabula.read_pdf(pdf_path, pages='all')
+
+
+
+# Selección de columnas
+df = table.loc[:, ["Unnamed: 0", "TOTALES"]]
+
+# Transformaciones
+df.loc[:, 'TOTALES'] = df['TOTALES'].astype(str).str.replace('.', '', regex=False)
+
+# Renombrar columnas
+df.rename(columns={"Unnamed: 0": "comuna", "TOTALES": "pop_vot2012"}, inplace=True)
+
+# Selección según algún criterio
+df = df[df['comuna'] != "REGION COMUNA"]
+
+df['comuna'] = df['comuna'].apply(lambda x: ' '.join(x.split(' ')[1:]))
+
+
+# Exportar a Google Drive
+#df.to_csv('/content/drive/MyDrive/Asientos/tools/votantes2012.csv', index=False)
+
+# Convertir a csv y exportarlo localmente (descargar en la barra lateral)
+df.to_csv('votantes2013.csv', index=False)
