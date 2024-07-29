@@ -1,0 +1,58 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import re
+
+# Lista de valores extraídos de las etiquetas <option>
+valores = ["1096", "1097", "1098", "1009", "803", "1099", "1100"]
+
+# Crear la lista de URLs
+urls = ["https://www.camara.cl/diputados/detalle/gastosoperacionales.aspx?prmId=" + value for value in valores]
+
+def scrape_data(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Extraer los datos necesarios
+    details_div = soup.find('div', class_='grid-3 aleft m-left14')
+    if details_div:
+        text = details_div.find('p').get_text(separator=' ').strip()
+
+        # Usar expresiones regulares para extraer los datos
+        comunas = re.search(r'Comunas:\s*(.*)\s*Distrito:', text).group(1).strip()
+        distrito = re.search(r'Distrito:\s*(.*)\s*Región:', text).group(1).strip()
+        region = re.search(r'Región:\s*(.*)\s*Período:', text).group(1).strip()
+        partido = re.search(r'Partido:\s*(.*)\s*Bancada:', text).group(1).strip()
+        bancada = re.search(r'Bancada:\s*(.*)', text).group(1).strip()
+    else:
+        comunas = distrito = region = partido = bancada = None
+
+    name = soup.find('h2', class_='rotulo')
+    if name:
+        diputado = name.get_text().strip()
+    else:
+        diputado = None
+
+    return {
+        'URL': url,
+        'Comunas': comunas,
+        'Distrito': distrito,
+        'Región': region,
+        'Partido': partido,
+        'Bancada': bancada,
+        'Diputado': diputado
+    }
+
+# Crear una lista para almacenar los datos
+data_list = []
+
+# Iterar sobre las URLs y obtener los datos
+for url in urls:
+    data = scrape_data(url)
+    data_list.append(data)
+
+
+df = pd.DataFrame(data_list)
+
+# Guardar el DataFrame en un archivo CSV
+df.to_csv('diputados_data.csv', index=False)
