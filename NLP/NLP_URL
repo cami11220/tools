@@ -1,0 +1,113 @@
+pip install requests beautifulsoup4 nltk textblob gspread
+
+!pip install textblob
+!pip install googletrans==4.0.0-rc1
+
+import pandas as pd
+from bs4 import BeautifulSoup
+import nltk
+
+import requests
+from nltk.corpus import stopwords
+from textblob import TextBlob
+import gspread
+from nltk import pos_tag
+from nltk.tokenize import word_tokenize
+from collections import defaultdict
+from googletrans import Translator
+import urllib3
+
+# Datos de noticias online en un csv; se podría obtener a mano o con web scraping
+enlaces_noticias = pd.read_csv('https://raw.githubusercontent.com/cami11220/DS/main/enlaces_noticias.csv', header=None)
+
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('stopwords')
+nltk.download('universal_tagset')
+nltk.download('brown')
+nltk.download('wordnet')
+
+
+# Suprimir la advertencia de solicitud HTTPS no verificada
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def obtener_contenido_noticia(url):
+    try:
+        response = requests.get(url, verify=False)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            # Dependiendo de la estructura de la página, ajusta el selector de HTML
+            parrafos = soup.find_all('p')
+            contenido = ' '.join([parrafo.get_text() for parrafo in parrafos])
+            return contenido
+        else:
+            print(f"No se pudo obtener el contenido; ", url)
+            return ''
+    except requests.exceptions.RequestException as e:
+        print(f"Error al realizar la solicitud: {e}", url)
+        return ''
+
+
+# Inicializar el traductor de Google
+translator = Translator()
+
+# Función para traducir el texto a inglés
+def translate_to_english(text):
+    try:
+        translated = translator.translate(text, src='es', dest='en')
+        return translated.text
+    except Exception as e:
+        return text  # Devolver el texto original en caso de error
+
+
+tabla_frecuencias = []
+sentimiento_general = {'positivo': 0, 'negativo': 0, 'neutro': 0}
+sentimiento_prueba = {'positivo': 0, 'negativo': 0, 'neutro': 0}
+
+# Palabras clave a buscar
+palabras_prueba = {"estallido", "octubre", "2019", "october", "social outbreak", "pop"}
+
+for enlace in enlaces_noticias[0]:
+    contenido = obtener_contenido_noticia(enlace)
+
+    tokens = word_tokenize(contenido, language='spanish')
+    stop_words = set(stopwords.words('spanish'))
+
+    # Filtrar stopwords y contar frecuencia de palabras
+    frecuencias = defaultdict(int)
+    for palabra in tokens:
+        if palabra.lower() not in stop_words:
+            frecuencias[palabra.lower()] += 1
+    # Crear tabla de frecuencias de palabras
+    for palabra, frecuencia in frecuencias.items():
+        tabla_frecuencias.append((palabra, frecuencia))
+
+    # Análisis de sentimientos
+    text_translated = translate_to_english(contenido)
+    blob = TextBlob(text_translated)
+
+    # Dividir el texto en oraciones y analizar el sentimiento de las oraciones que contienen las palabras clave
+    for oracion in blob.sentences:
+        sentimiento = oracion.sentiment
+        if sentimiento.polarity > 0:
+            sentimiento_general['positivo'] += 1
+        elif sentimiento.polarity < 0:
+            sentimiento_general['negativo'] += 1
+        else:
+            sentimiento_general['neutro'] += 1
+
+
+        if any(palabra in oracion.lower() for palabra in palabras_prueba):
+            # Analizar el sentimiento de la oración
+            sentimiento = oracion.sentiment
+            # Clasificar el sentimiento como positivo, negativo o neutro
+            if sentimiento.polarity > 0:
+                sentimiento_prueba['positivo'] += 1
+            elif sentimiento.polarity < 0:
+                sentimiento_prueba['negativo'] += 1
+            else:
+                sentimiento_prueba['neutro'] += 1
+
+print(sentimiento_general)
+print(sentimiento_prueba)
